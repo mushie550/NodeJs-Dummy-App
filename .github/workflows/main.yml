@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install dependencies and build
+      run: |
+        npm install
+        npm run build
+
+    - name: Build and push Docker image to AWS ECR
+      env:
+        AWS_REGION: us-east-1
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        ECR_REPO_URL: public.ecr.aws/t7h4j8y2/node-app-project-repo
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REPO_URL/NodeJSApp:$IMAGE_TAG .
+        docker tag $ECR_REPO_URL/NodeJSApp:$IMAGE_TAG $ECR_REPO_URL/NodeJSApp:latest
+        docker login -u $AWS_ACCESS_KEY_ID -p $AWS_SECRET_ACCESS_KEY $ECR_REPO_URL
+        docker push $ECR_REPO_URL/NodeJSApp:$IMAGE_TAG
+        docker push $ECR_REPO_URL/NodeJSApp:latest
+
+    - name: SSH into the server and deploy
+      env:
+        SERVER_IP: ${{ secrets.NGINX_SERVER_IP }}
+        DOCKER_COMPOSE_PATH: /home/ubuntu/NodeJs-Dummy-App/docker-compose.yml
+      run: |
+        ssh -o StrictHostKeyChecking=no user@$SERVER_IP "docker-compose -f $DOCKER_COMPOSE_PATH pull"
+        ssh -o StrictHostKeyChecking=no user@$SERVER_IP "docker-compose -f $DOCKER_COMPOSE_PATH up -d"
