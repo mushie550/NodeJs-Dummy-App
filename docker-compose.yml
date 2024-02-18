@@ -6,3 +6,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - app
