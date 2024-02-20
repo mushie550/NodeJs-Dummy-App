@@ -47,11 +47,9 @@ jobs:
         ECR_REPO_URL: 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo
         IMAGE_TAG: ${{ github.sha }}
       run: |
-         docker build -t $ECR_REPO_URL/nodejsapp:$IMAGE_TAG .
-         docker tag $ECR_REPO_URL/nodejsapp:$IMAGE_TAG $ECR_REPO_URL/nodejsapp:latest
-         docker login -u $AWS_ACCESS_KEY_ID -p $AWS_SECRET_ACCESS_KEY $ECR_REPO_URL
+         docker build -t nodejsapp:$IMAGE_TAG .
+         docker tag nodejsapp:$IMAGE_TAG $ECR_REPO_URL/nodejsapp:$IMAGE_TAG
          docker push $ECR_REPO_URL/nodejsapp:$IMAGE_TAG
-         docker push $ECR_REPO_URL/nodejsapp:latest
 
     - name: SSH into the server and deploy
       env:
