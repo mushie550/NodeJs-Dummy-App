@@ -30,6 +30,7 @@ jobs:
        AWS_REGION: us-east-1
        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+       ECR_REPO_URL: 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo
 
         
     - name: Log in to ECR
@@ -38,16 +39,10 @@ jobs:
 
 
     - name: Build and push Docker image to AWS ECR
-      env:
-        AWS_REGION: us-east-1
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        ECR_REPO_URL: 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo
-        IMAGE_TAG: ${{ github.sha }}
       run: |
          docker build -t node-app-project-repo .
-         docker tag node-app-project-repo:latest 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
-         docker push 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
+         docker tag node-app-project-repo:latest $ECR_REPO_URL:latest
+         docker push $ECR_REPO_URL:latest
 
     - name: SSH into the server and deploy
       env:
