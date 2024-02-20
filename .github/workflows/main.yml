@@ -48,8 +48,8 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
          docker build -t node-app-project-repo .
-         docker tag node-app-project-repo:latest 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
-         docker push 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
+         docker tag node-app-project-repo:$IMAGE_TAG 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:$IMAGE_TAG
+         docker push 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:$IMAGE_TAG
 
     - name: SSH into the server and deploy
       env:
