@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Build, Push to ECR, and Deploy to EC2
 
 on:
   push:
@@ -6,48 +6,60 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Update AWS CLI
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y awscli
+      - name: Update AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
 
-    - name: Set AWS CLI region
-      run: aws configure set region us-east-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Set up AWS CLI
-      run: |
-       aws configure set region us-east-1
-       aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-       aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-      env:
-       AWS_REGION: us-east-1
-       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-       ECR_REPO_URL: 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
 
-        
-    - name: Log in to ECR
-      run: |
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 477421128023.dkr.ecr.us-east-1.amazonaws.com
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.ECR_REPOSITORY }}:latest .
 
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest
 
-    - name: Build and push Docker image to AWS ECR
-      run: |
-         docker build -t node-app-project-repo .
-         docker tag node-app-project-repo:latest $ECR_REPO_URL:latest
-         docker push $ECR_REPO_URL:latest
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
 
-    - name: SSH into the server and deploy
-      env:
-        SERVER_IP: ${{ secrets.NGINX_SERVER_IP }}
-        DOCKER_COMPOSE_PATH: /home/ubuntu/NodeJs-Dummy-App/docker-compose.yml
-      run: |
-        ssh -o StrictHostKeyChecking=no user@$SERVER_IP "docker-compose -f $DOCKER_COMPOSE_PATH pull"
-        ssh -o StrictHostKeyChecking=no user@$SERVER_IP "docker-compose -f $DOCKER_COMPOSE_PATH up -d"
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Pull and run Docker image on EC2
+        env:
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i $EC2_KEY $EC2_USER@$EC2_INSTANCE_ID << 'EOF'
+          docker login -u AWS -p $(aws ecr get-login-password --region $AWS_REGION) $ECR_REPOSITORY
+          docker pull $ECR_REPOSITORY:latest
+          docker stop $(docker ps -q --filter ancestor=$ECR_REPOSITORY:latest) || true
+          docker run -d $ECR_REPOSITORY:latest
+          EOF
