@@ -59,6 +59,5 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_INSTANCE_ID }} << 'EOF'
           docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REPOSITORY }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:latest
-          docker stop $(docker ps -q --filter ancestor=${{ secrets.ECR_REPOSITORY }}:latest) || true
           docker run -d ${{ secrets.ECR_REPOSITORY }}:latest
           EOF
