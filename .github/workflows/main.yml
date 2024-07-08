@@ -57,7 +57,7 @@ jobs:
       - name: Pull and run Docker image on EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_INSTANCE_ID }} << 'EOF'
-          docker login -u AWS -p $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }}) ${{ secrets.ECR_REPOSITORY }}
-          docker pull ${{ secrets.ECR_REPOSITORY }}:latest
-          docker run -d ${{ secrets.ECR_REPOSITORY }}:latest
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 477421128023.dkr.ecr.us-east-1.amazonaws.com
+          docker pull 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
+          docker run -d 477421128023.dkr.ecr.us-east-1.amazonaws.com/node-app-project-repo:latest
           EOF
